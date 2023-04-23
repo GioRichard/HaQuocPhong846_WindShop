@@ -25,8 +25,9 @@ import javax.websocket.server.PathParam;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
-
+import java.util.Objects;
+import com.windshop.phone.entity.Product;
+import com.windshop.phone.repository.ProductRepository;
 @Controller
 @RequestMapping("/admin")
 public class AdminOrderController extends BaseController {
@@ -69,8 +70,17 @@ public class AdminOrderController extends BaseController {
     public ResponseEntity<AjaxResponse> updateStatus(@RequestBody String data) {
         JSONObject json = new JSONObject(data);
         SaleOrder order = saleOrderRepository.getOne(json.getInt("id"));
-        order.setStatusOrder(json.getInt("status"));
-        order.setStatusOrderName(StatusOrder.findByCode(json.getInt("status")).toString());
+        int status = json.getInt("status");
+        if(status == 1 && status != order.getStatusOrder()) {
+           for (SaleOrderProduct sale: order.getSaleOrderProducts()) {
+               Product product = sale.getProduct();
+                Product productInDB = productRepository.getReferenceById(product.getId());
+                product.setQuantity(productInDB.getQuantity() - sale.getQuantity());
+                productRepository.save(productInDB);
+            }
+        }
+        order.setStatusOrder(status);
+        order.setStatusOrderName(Objects.requireNonNull(StatusOrder.findByCode(status)).toString());
         order.setUpdatedDate(LocalDateTime.now());
         saleOrderRepository.save(order);
         return ResponseEntity.ok(new AjaxResponse(200,"Success"));
